@@ -50,6 +50,18 @@ configure_file(xc_version.h.in xc_version.h @ONLY)
 
 # create dummy config.h
 configure_file(config.h.cmake.in config.h @ONLY)
+configure_file(cmake/libxc.pc.in libxc.pc @ONLY)
+
+# extract project soversion from source
+file(STRINGS "configure.ac" _libxc_configure_ac
+     REGEX "XC_(CURRENT|REVISION|AGE)=")
+foreach(ver ${_libxc_configure_ac})
+  if (ver MATCHES "XC_(CURRENT|REVISION|AGE)=+([^ ]+)$")
+    set(XC_${CMAKE_MATCH_1} "${CMAKE_MATCH_2}" CACHE INTERNAL "")
+  endif()
+endforeach()
+set(${PROJECT_NAME}_SOVERSION ${XC_CURRENT}:${XC_REVISION}:${XC_AGE})
+message(STATUS "Libxc SO ${${PROJECT_NAME}_SOVERSION}")
 
 set(raw_sources_list
 bessel.c
@@ -273,7 +285,8 @@ file(WRITE ${PROJECT_BINARY_DIR}/${src_prefix}xc.h "${_quoted_src}")
 add_library(xc ${sources_list})
 target_link_libraries(xc INTERFACE ${STANDARD_MATH_LIBRARY})
 set_target_properties(xc PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_FPIC}
-                                    COMPILE_FLAGS "-std=c99")
+                                    COMPILE_FLAGS "-std=c99"
+                                    SOVERSION ${XC_CURRENT})
 if(${BUILD_SHARED_LIBS})
     target_link_libraries(xc PRIVATE ${LIBC_INTERJECT})
     if(APPLE)
@@ -346,6 +359,9 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PN}Config.cmake
 install(EXPORT "${PN}Targets"
         NAMESPACE "${PN}::"
         DESTINATION ${CMAKECONFIG_INSTALL_DIR})
+
+install(FILES ${PROJECT_BINARY_DIR}/libxc.pc
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig/libxc.pc)
 
 #include(CheckFunctionExists)
 #
